@@ -6,7 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 
-namespace WIKIParserCompany.Core
+namespace Model
 {
     /// <summary>
     /// отражает статус http ответа
@@ -21,17 +21,14 @@ namespace WIKIParserCompany.Core
     class HTTPProvider
     {
 
-        public HTTPProvider(Uri uri)
+        public HTTPProvider()
         {
-            this.uri = uri;
+           
             Cookiecontainer = new CookieContainer();
 
         }
 
-        /// <summary>
-        /// адрес запроса new Uri("");
-        /// </summary>
-        public Uri uri { get; private set; }
+     
 
         CookieContainer Cookiecontainer { get; set; }
 
@@ -76,7 +73,7 @@ namespace WIKIParserCompany.Core
         /// <summary>
         /// GET-запрос к сайту
         /// </summary>
-        /// <param name="uri">адресс запроса</param>
+        /// <param name="uri">адресс запроса </param>
         /// <returns>HttpRequesStatus-Статус ответа,string- ответ</returns>
         public Tuple<HttpRequesStatus, string> HttpGetRequest(string uri)
         {

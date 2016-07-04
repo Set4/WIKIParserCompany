@@ -121,7 +121,7 @@ namespace Model
 
 
 
-        private string ParseWikiBlockCardCompany(string response)
+        public string ParseWikiBlockCardCompany(string response)
         {
             Regex reg;
             string result;
@@ -156,7 +156,7 @@ namespace Model
      
 
 
-        private string ParseWikiInformationCompany(string response, List<string> regex)
+        public string ParseWikiInformationCompany(string response, List<string> regex)
         {
             Regex reg;
             string result=String.Empty;

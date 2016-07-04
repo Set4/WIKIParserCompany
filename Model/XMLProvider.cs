@@ -20,86 +20,52 @@ namespace Model
 
         public string SaveCompany(Company company)
         {
-            /*
-            XmlDocument xDoc = new XmlDocument();
-            
-            xDoc.Load("users.xml");
-            XmlElement xRoot = xDoc.DocumentElement;
-            // создаем новый элемент user
-            XmlElement userElem = xDoc.CreateElement("user");
-            // создаем атрибут name
-            XmlAttribute nameAttr = xDoc.CreateAttribute("name");
-            // создаем элементы company и age
-            XmlElement companyElem = xDoc.CreateElement("company");
-            XmlElement ageElem = xDoc.CreateElement("age");
-            // создаем текстовые значения для элементов и атрибута
-            XmlText nameText = xDoc.CreateTextNode("Mark Zuckerberg");
-            XmlText companyText = xDoc.CreateTextNode("Facebook");
-            XmlText ageText = xDoc.CreateTextNode("30");
-
-            //добавляем узлы
-            nameAttr.AppendChild(nameText);
-            companyElem.AppendChild(companyText);
-            ageElem.AppendChild(ageText);
-            userElem.Attributes.Append(nameAttr);
-            userElem.AppendChild(companyElem);
-            userElem.AppendChild(ageElem);
-            xRoot.AppendChild(userElem);
-            xDoc.Save("users.xml");
-            */
-
-
-
-
-
-
+          
             try
             {
 
-                XDocument xdoc = new XDocument();
+
+                XDocument doc = XDocument.Load(path);
 
 
-
-                // создаем второй элемент
-                XElement comp = new XElement("company");
-
-                XAttribute NameCompanyAttr = new XAttribute("name", company.NameCompany);
-                comp.Add(NameCompanyAttr);
-
-
-                XElement logo = new XElement("logo", company.LogoCompany);
-
-                
-                XElement country = new XElement("country", company.Location.Country);
-                comp.Add(country);
-
-                XElement city = new XElement("city", company.Location.City);
-                comp.Add(city);
+                XElement item = new XElement("company");
+                //добавляем необходимые атрибуты
+                item.Add(new XAttribute("name", company.NameCompany));
+                item.Add(new XAttribute("logo", company.YearOfFoundation));
+                //кодирование logo в base64
+                item.Add(new XAttribute("year", Convert.ToBase64String(company.LogoCompany)));
 
 
-                XElement year = new XElement("year", company.YearOfFoundation);
-                comp.Add(year);
+                //создаем элемент "location"
+                XElement location = new XElement("location");
+                location.Add(new XAttribute("name", company.NameCompany));
+                location.Add(new XAttribute("year", company.YearOfFoundation));
+                item.Add(location);
 
-                XElement galaxysPriceElem = new XElement("keypeople", company.KeyPeople);
+                //создаем элемент "capital"
+                XElement capital = new XElement("capital");
+                capital.Add(new XAttribute("chartercapital", company.CharterCapital.CharterCapital));
+                capital.Add(new XAttribute("date", company.CharterCapital.Date));
+                item.Add(capital);
 
-                XElement capital = new XElement("capital", company.CharterCapital);
-                comp.Add(capital);
+                //создаем элемент "keypeoples"
+                XElement keypeoples = new XElement("keypeoples");
+                foreach (People i in company.KeyPeople)
+                {
+                    XElement people = new XElement("people");
+                    people.Add(new XAttribute("lastname", company.CharterCapital.CharterCapital));
+                    people.Add(new XAttribute("firstname", company.CharterCapital.CharterCapital));
+                    people.Add(new XAttribute("position", company.CharterCapital.CharterCapital));
+                    keypeoples.Add(people);
+                }
+                item.Add(keypeoples);
+
+               
 
 
-
-                // создаем корневой элемент
-                XElement companys = new XElement("companys");
-
-                // добавляем в корневой элемент
-                companys.Add(comp);
-
-
-                // добавляем корневой элемент в документ
-                xdoc.Add(companys);
-
-                //сохраняем документ
-                xdoc.Save(path);
-
+                doc.Root.Add(item);
+                doc.Save(path);
+              
                 return company.NameCompany;
             }
             catch (Exception ex)
