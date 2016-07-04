@@ -20,14 +20,19 @@ namespace Model
 
         public string SaveCompany(Company company)
         {
-          
+
             try
             {
+                XDocument doc;
 
+                if (!System.IO.File.Exists(path.Trim()))
+                {
+                    doc = new XDocument(new XElement("companies"));
+                    doc.Save(path);
 
-                XDocument doc = XDocument.Load(path);
+                }
 
-
+                doc = XDocument.Load(path);
                 XElement item = new XElement("company");
                 //добавляем необходимые атрибуты
                 item.Add(new XAttribute("name", company.NameCompany));
@@ -60,12 +65,12 @@ namespace Model
                 }
                 item.Add(keypeoples);
 
-               
+
 
 
                 doc.Root.Add(item);
                 doc.Save(path);
-              
+
                 return company.NameCompany;
             }
             catch (Exception ex)
