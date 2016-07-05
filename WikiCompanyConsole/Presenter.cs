@@ -8,17 +8,28 @@ using System.Threading.Tasks;
 
 namespace WikiCompanyConsole
 {
+    enum StatusVichislenia
+    {
+        Stop,
+        Pause
+    }
     class Presenter
     {
 
         readonly IModel _model;
         readonly IView _view;
 
+
         List<string> companies;
-        int schetcik;
+       
+
         CancellationTokenSource cancelTokenSource;
         CancellationToken token;
+
         ParallelLoopResult result;
+
+        StatusVichislenia status;
+        
 
         public Presenter(IModel model, IView view)
         {
@@ -27,16 +38,30 @@ namespace WikiCompanyConsole
 
             _model.Message += _model_Message;
 
+
             cancelTokenSource = new CancellationTokenSource();
             token = cancelTokenSource.Token;
+
+          
+            result = new ParallelLoopResult();
+
+            status = StatusVichislenia.Stop;
+           
         }
+
 
         private void _model_Message(object sender, EventMessage e)
         {
             _view.ViewMessage(e.Message);
         }
 
-        public void GetListCompanies()
+
+
+
+
+
+
+        private bool GetListCompanies()
         {
            
             companies = _model.GetListCompanyToTxT();
@@ -44,68 +69,71 @@ namespace WikiCompanyConsole
             if (companies == null || companies.Count == 0)
             {
                 _view.ViewMessage("Ошибка!!! Список компаний не загружен!");
-
+                return false;
             }
             else
             {
                 _view.ViewMessage("Загружен список из " + companies.Count + " компаний");
+                return true;
             }
 
         }
 
 
-        public long Pririvanie()
+
+      
+
+
+        public void Start()
         {
-            cancelTokenSource.Cancel();
-            return (long)result.LowestBreakIteration;
-        }
-
-
-        public void Vichisl(List<string> companies)
-        {
-            try
+            if (result.IsCompleted == true || status==StatusVichislenia.Stop)
             {
-                result = Parallel.ForEach<string>(companies, new ParallelOptions { CancellationToken = token }, _model.Get);
-             
-            }
-            catch (OperationCanceledException ex)
-            {
-                Console.WriteLine("Операция прервана");
-            }
-            finally
-            {
-                cancelTokenSource.Dispose();
-            }
-
-        }
-
-        public void Vichislenie()
-        {
-            List<string> companis = null;
-
-            companis = _model.GetListCompanyToTxT();
-
-            if (companis == null || companis.Count == 0)
-            {
-                _view.ViewMessage("Ошибка!!! Список компаний не загружен!");
-
+                if (GetListCompanies())
+                    result = _model.GetParallelCompanis(companies,
+                                            token, cancelTokenSource);
             }
             else
             {
-                _view.ViewMessage("Загружен список из " + companis.Count + " компаний");
-
-                _model.GetCompanis(companis);
+                if (companies != null && companies.Count > 0)
+                {
+                    result = _model.GetParallelCompanis(companies.GetRange((int)result.LowestBreakIteration, companies.Count - (int)result.LowestBreakIteration),
+                        token, cancelTokenSource);
+                }
             }
 
         }
 
-
-        public void VichislenieOne(string compani)
+        public void Pause()
         {
-            if (String.IsNullOrWhiteSpace(compani.Trim()))
-                _model.GetCompany(compani);
+            _model.Pririvanie(cancelTokenSource);
+            status = StatusVichislenia.Pause;
+        }
+
+
+        public void Stop()
+        {
+            _model.Pririvanie(cancelTokenSource);
+            status = StatusVichislenia.Stop;
+        }
+
+        public void Exit()
+        {
+            _view.ViewMessage("Нажмите любую клавишу");
+            Console.ReadKey();
+            Environment.Exit(0);
+        }
+
+        public void SearchCompanu(string company)
+        {
+            if (!String.IsNullOrWhiteSpace(company.Trim()))
+            {
+                if (_model.GetCompany(company.Trim()).Item1 == Result.CompanySaved)
+                    _view.ViewMessage("Компания " + company + " найдена и созранена в XML файле.");
+                else
+                    _view.ViewMessage("Компания " + company + " не найдена!!!");
+            }
             else
-                _view.ViewMessage("Ошибка!!! Название компании не введено!");
+                _view.ViewMessage("Ошибка!!! Название компании введено не верно!");
         }
     }
 }

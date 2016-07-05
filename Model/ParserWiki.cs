@@ -8,7 +8,14 @@ using System.Threading.Tasks;
 
 namespace Model
 {
-    class ParserWiki
+    enum ParseWikiStatus
+    {
+        CardCompanuSearch,
+        MoreSearchResult,
+        Error
+    }
+
+    class Parser
     {
         const double timewait = 1;
 
@@ -49,23 +56,145 @@ namespace Model
 
         //(0[1-9]|[12][0-9]|3[01])[- \/.](0[1-9]|1[012])[-\/.](19|20)\d\ data 
         //[0-9]{4} g или только год
-       
+
+
+        /*
+         * 
+         * 
+private string ParseNameCompany(string response)
+   {
+       Regex reg;
+       string result;
+
+       try
+       {
+           if (String.IsNullOrWhiteSpace(response.Trim()))
+               throw new NullReferenceException();
+
+
+           reg = new Regex("<td.*?class=[\"]*fn org[\"]*.*?>+(.*?|\\s)+<\\/td>",
+               RegexOptions.IgnoreCase
+               | RegexOptions.Multiline
+               | RegexOptions.CultureInvariant,
+               TimeSpan.FromSeconds(timewait));
+
+           result = reg.Match(response).Value;
+
+           if (!String.IsNullOrWhiteSpace(result))
+           {
+               reg = new Regex(">.*?<",
+            RegexOptions.IgnoreCase
+            | RegexOptions.Multiline
+            | RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(timewait));
+
+               result = reg.Match(result).Value;
+
+               if (!String.IsNullOrWhiteSpace(result))
+               {
+                   reg = new Regex("[а-я А-Я 0-9]",
+            RegexOptions.IgnoreCase
+            | RegexOptions.Multiline
+            | RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(timewait));
+
+
+                   result = reg.Match(result).Value;
+
+                   if (!String.IsNullOrWhiteSpace(result))
+                   {
+                       return result;
+                   }
+                   else
+                       return String.Empty;
+               }
+               else
+                   return String.Empty;
+           }
+           else
+               return String.Empty;
+
+
+
+       }
+       catch (Exception ex)
+       {
+           Debug.WriteLine("Error(ParseNameCompany-метод) :  {0}", ex.Message);
+           return String.Empty;
+       }
+
+   }
+   */
+
+
+public string ReplaceNameCompani(string namecompani)
+        {
+            Regex reg;
+            string result = String.Empty;
+
+            try
+            {
+                if (String.IsNullOrWhiteSpace(namecompani.Trim()))
+                    throw new NullReferenceException();
+
+             //   ООО
+
+
+                reg = new Regex(@"(ООО)|("") | (')|(ЗАО)|(ОАО)|(\\(АО\\))|(ФГУП)|(КОНЦЕРН)|(ТС)|(ФИРМА)|(КОМПАНИЯ)",
+               RegexOptions.IgnoreCase
+               | RegexOptions.Multiline
+               | RegexOptions.CultureInvariant,
+               TimeSpan.FromSeconds(timewait));
+
             
-             /*
-              * 
-              * 
-   private string ParseNameCompany(string response)
+
+
+                //[^a]
+        result = reg.Replace(namecompani, "").Trim();
+     
+                if (String.IsNullOrWhiteSpace(result))
+                    return String.Empty;
+                else
+                    return result;
+
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error(ReplaceNameCompany-метод) :  {0}", ex.Message);
+                return String.Empty;
+            }
+        }
+
+
+
+        public Tuple<ParseWikiStatus, string> CompaniIsSearth(string response)
+        {
+           
+            string block = ParseWikiBlockCardCompany(response);
+
+            if (!String.IsNullOrWhiteSpace(block))
+                return new Tuple<ParseWikiStatus, string>(ParseWikiStatus.CardCompanuSearch, block);
+            else if(MoreSearchResult(response))
+                return new Tuple<ParseWikiStatus, string>(ParseWikiStatus.MoreSearchResult, String.Empty);
+            else
+                return new Tuple<ParseWikiStatus, string>(ParseWikiStatus.Error, String.Empty);
+        }
+
+
+
+
+        private bool MoreSearchResult(string response)
         {
             Regex reg;
             string result;
-
             try
             {
                 if (String.IsNullOrWhiteSpace(response.Trim()))
                     throw new NullReferenceException();
 
 
-                reg = new Regex("<td.*?class=[\"]*fn org[\"]*.*?>+(.*?|\\s)+<\\/td>",
+                reg = new Regex("<h1.*?id=[\"]*firstHeading[\"].*?class=[\"] * firstHeading[\"]*.*?>+Результаты поиска+<\\/h1>",
                     RegexOptions.IgnoreCase
                     | RegexOptions.Multiline
                     | RegexOptions.CultureInvariant,
@@ -74,54 +203,20 @@ namespace Model
                 result = reg.Match(response).Value;
 
                 if (!String.IsNullOrWhiteSpace(result))
-                {
-                    reg = new Regex(">.*?<",
-                 RegexOptions.IgnoreCase
-                 | RegexOptions.Multiline
-                 | RegexOptions.CultureInvariant,
-                 TimeSpan.FromSeconds(timewait));
-
-                    result = reg.Match(result).Value;
-
-                    if (!String.IsNullOrWhiteSpace(result))
-                    {
-                        reg = new Regex("[а-я А-Я 0-9]",
-                 RegexOptions.IgnoreCase
-                 | RegexOptions.Multiline
-                 | RegexOptions.CultureInvariant,
-                 TimeSpan.FromSeconds(timewait));
-
-
-                        result = reg.Match(result).Value;
-
-                        if (!String.IsNullOrWhiteSpace(result))
-                        {
-                            return result;
-                        }
-                        else
-                            return String.Empty;
-                    }
-                    else
-                        return String.Empty;
-                }
+                    return true;
                 else
-                    return String.Empty;
-
-
+                    return false;
 
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Error(ParseNameCompany-метод) :  {0}", ex.Message);
-                return String.Empty;
+                Debug.WriteLine("Error(MoreSearchResult-метод) :  {0}", ex.Message);
+                return false;
             }
-
         }
-        */
 
 
-
-        public string ParseWikiBlockCardCompany(string response)
+        private string ParseWikiBlockCardCompany(string response)
         {
             Regex reg;
             string result;
@@ -196,4 +291,7 @@ namespace Model
         }
 
     }
+
+
+   
 }

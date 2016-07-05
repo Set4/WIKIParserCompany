@@ -25,32 +25,38 @@ namespace WikiCompanyConsole
         static string informationText = "bla-bla-bla";
 
 
-        static long stpopedvichislenie = 0;
-
-
         static void Main(string[] args)
         {
             Presenter presenter=new Presenter(new Model.Model(inputpath, xmlpath, errorcompanipath), new Program());
 
             Console.WriteLine(informationText);
 
+            Task task;
+
+
+         
+            Console.ReadKey();
+
+         
             while (true)
             {
                switch( Console.ReadLine())
                 {
-                    case "/start": Console.WriteLine("Старт:"); presenter.Vichislenie(); break;
+                    case "/start": Console.WriteLine("Старт:"); task= new Task(presenter.Start); task.Start();
+ break;
                     case "/search":
-                        Console.Write("Введите название компании:"); Console.ReadLine();
+                        Console.Write("Введите название компании:"); 
+                       presenter.SearchCompanu( Console.ReadLine());
                         break;
-                    case "/pause":break;
-                    case "/stop": break;
-                    case "/exit": Console.WriteLine("Нажмите любую клавишу"); Console.ReadKey(); Environment.Exit(0); break;
+                    case "/pause":presenter.Pause(); break;
+                    case "/stop": presenter.Stop(); break;
+                    case "/exit": presenter.Exit(); break;
 
                     default: Console.WriteLine("Неизвестная команда."); break;
                 }
               
             }
-
+           
             
 
         }

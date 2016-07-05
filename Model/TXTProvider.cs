@@ -19,6 +19,7 @@ namespace Model
         /// <returns>список строк</returns>
         public static List<string> ReadTextFile(string path)
         {
+            Parser parse = new Parser();
             List<string> lines = new List<string>();
             try
             {
@@ -27,6 +28,7 @@ namespace Model
                     string line;
                     while ((line = file.ReadLine()) != null)
                     {
+                        line = parse.ReplaceNameCompani(line);
                         if (!String.IsNullOrWhiteSpace(line.Trim()))
                             lines.Add(line);
                     }
@@ -40,6 +42,8 @@ namespace Model
                 return null;
             }
         }
+
+     
 
         /// <summary>
         /// Запись в .txt файла

@@ -8,16 +8,9 @@ using System.Text;
 
 namespace Model
 {
-    /// <summary>
-    /// отражает статус http ответа
-    /// </summary>
-    enum HttpRequesStatus
-    {
-        ResourceFound,
-        ResourceNotFound,
-        Error
-    }
-
+   /// <summary>
+   /// Класс реализующий http get-запрос
+   /// </summary>
     class HTTPProvider
     {
 
@@ -37,60 +30,48 @@ namespace Model
         {
             get
             {
-              
+
                 if (httpclient == null)
                 {
-                    HttpClientHandler handler = new HttpClientHandler();
+                    HttpClientHandler handler = new HttpClientHandler()
+                    {
+                        //Добавление заголовков
+                        //Proxy = new WebProxy("http://127.0.0.1:8888"),
+                        //UseProxy = true,
+                    };
 
-                handler.CookieContainer = Cookiecontainer;
-                handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-                handler.AllowAutoRedirect = false;
+
 
                     httpclient = new HttpClient(handler);
 
+                    var byteArray = Encoding.ASCII.GetBytes("username:password");
+                    httpclient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
 
-                    #region Устанавливаем заголовки запроса    httpclient.DefaultRequestHeaders.Add() 
 
-                    httpclient.DefaultRequestHeaders.Add("Accept", @"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-
-                    httpclient.DefaultRequestHeaders.Add("Connection", @"keep-alive");
-
-                    httpclient.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
-
-                    httpclient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.109 Safari/537.36");
-
-                    httpclient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate");
-
-                    httpclient.DefaultRequestHeaders.Add("Accept-Language", "ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4");
-
-                    #endregion
                 }
                 return httpclient;
             }
         }
 
 
-        /// <summary>
-        /// GET-запрос к сайту
-        /// </summary>
-        /// <param name="uri">адресс запроса </param>
-        /// <returns>HttpRequesStatus-Статус ответа,string- ответ</returns>
-        public Tuple<HttpRequesStatus, string> HttpGetRequest(string uri)
+
+
+    /// <summary>
+    /// GET-запрос к сайту
+    /// </summary>
+    /// <param name="uri">адресс запроса </param>
+    /// <returns>string- ответ</returns>
+    public string HttpGetRequest(string uri)
         {
             try
             {
                 using (HttpResponseMessage response = HttpClient.GetAsync(uri).Result)
                 {
-                    switch (response.StatusCode)
-                    {
-                        case HttpStatusCode.OK:
-                            return new Tuple<HttpRequesStatus, string>(HttpRequesStatus.ResourceFound, response.Content.ReadAsStringAsync().Result);
+                    if (response.StatusCode == HttpStatusCode.OK)
+                        return response.Content.ReadAsStringAsync().Result;
+                    else
+                        return String.Empty;
 
-                        case HttpStatusCode.Found:
-                            return new Tuple<HttpRequesStatus, string>(HttpRequesStatus.ResourceNotFound, String.Empty);
-
-                        default: return new Tuple<HttpRequesStatus, string>(HttpRequesStatus.Error, String.Empty);
-                    }
 
                 }
             }
@@ -106,23 +87,17 @@ namespace Model
         /// GET-запрос для получения картинки
         /// </summary>
         /// <param name="uri">адресс запроса</param>
-        /// <returns>HttpRequesStatus-Статус ответа,byte[] - ответ</returns>
-        public Tuple<HttpRequesStatus, byte[]> HttpLoadImage(string uri)
+        /// <returns>byte[] - ответ</returns>
+        public byte[] HttpLoadImage(string uri)
         {
             try
             {
                 using (HttpResponseMessage response = HttpClient.GetAsync(uri).Result)
                 {
-                    switch (response.StatusCode)
-                    {
-                        case HttpStatusCode.OK:
-                            return new Tuple<HttpRequesStatus, byte[]>(HttpRequesStatus.ResourceFound, response.Content.ReadAsByteArrayAsync().Result);
-
-                        case HttpStatusCode.Found:
-                            return new Tuple<HttpRequesStatus, byte[]>(HttpRequesStatus.ResourceNotFound, null);
-
-                        default: return new Tuple<HttpRequesStatus, byte[]>(HttpRequesStatus.Error, null);
-                    }
+                    if (response.StatusCode == HttpStatusCode.OK)
+                        return response.Content.ReadAsByteArrayAsync().Result;
+                    else
+                        return null;
 
                 }
             }

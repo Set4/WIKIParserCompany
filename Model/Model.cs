@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +14,7 @@ namespace Model
     public enum Result
     {
         CompanySaved,
+        SearthMoreCompanis,
         Error
     }
 
@@ -25,6 +30,8 @@ namespace Model
         }
     }
 
+
+
     public interface IModel
     {
         List<string> GetListCompanyToTxT();
@@ -32,9 +39,14 @@ namespace Model
 
         event EventHandler<EventMessage> Message;
 
-        void GetCompanis(List<string> items);
-        void Get(string namecompany);
+        ParallelLoopResult GetParallelCompanis(List<string> items, CancellationToken token, CancellationTokenSource cancelTokenSource);
+        void Pririvanie(CancellationTokenSource cancelTokenSource);
+
+      
     }
+
+
+
 
     public class Model:IModel
     {
@@ -52,11 +64,15 @@ namespace Model
         static object locker = new object();
         static object locker1 = new object();
 
+      
+
         public Model(string pathloadtxt, string pathsavexml, string pathsavetxt)
         {
             this.pathloadtxt = pathloadtxt;
             this.pathsavexml = pathsavexml;
             this.pathsavetxt = pathsavetxt;
+
+            
         }
 
 
@@ -65,61 +81,79 @@ namespace Model
             if (String.IsNullOrWhiteSpace(pathloadtxt.Trim()) && !System.IO.File.Exists(pathloadtxt.Trim()))
                 return null;
             else
+               return TXTProvider.ReadTextFile(pathloadtxt);
+        }
+
+
+
+
+
+        public ParallelLoopResult GetParallelCompanis(List<string> items, CancellationToken token, CancellationTokenSource cancelTokenSource)
+        {
+            ParallelLoopResult result = new ParallelLoopResult();
+            try
             {
-                return TXTProvider.ReadTextFile(pathloadtxt);
+
+                result = Parallel.ForEach<string>(items, new ParallelOptions { CancellationToken = token }, Get);
+                return result;
+
             }
+            finally
+            {
+                cancelTokenSource.Dispose();
+            }
+
         }
 
 
-        public void GetCompanis(List<string> items)
+
+
+        public void Pririvanie(CancellationTokenSource cancelTokenSource)
         {
-
-            ParallelLoopResult result = Parallel.ForEach<string>(items, Get);
-
-           
-
-            //parallel
-           // Message
+            cancelTokenSource.Cancel();
         }
 
-        public void Get(string namecompany)
-        {
-            Tuple<Result, string> result = GetCompany(namecompany);
-            Message(this, new EventMessage(result.Item1, result.Item2));
-        }
 
 
 
         public Tuple<Result, string> GetCompany(string namecompany)
         {
             HTTPProvider http = new HTTPProvider();
-            Tuple<HttpRequesStatus, string> response = http.HttpGetRequest(uripath1 + namecompany + uripath2);
+            string response = http.HttpGetRequest(uripath1 + namecompany + uripath2);
 
-            switch (response.Item1)
+            if (response == null)
             {
-                case HttpRequesStatus.Error:
-                    return new Tuple<Result, string>(Result.Error, "ERROR. HTTP запрос вызвал ошибку");
-                case HttpRequesStatus.ResourceNotFound:
+                lock (locker1)
+                {
+                    if (SaveErrorCompanyToTxT(namecompany))
+                        return new Tuple<Result, string>(Result.Error, "ERROR. HTTP запрос" + namecompany + " вызвал ошибку. Компания  Сохранена в фаил.");
+                    else
+                        return new Tuple<Result, string>(Result.Error, "ERROR. txt фаил 'не найденных компаний' вызвал ошибку");
+                }
+            }
 
+            Parser parse = new Parser();
+            string wikicompanyblock=String.Empty;
+            Tuple<ParseWikiStatus, string> parseresult = parse.CompaniIsSearth(response);
+            switch (parseresult.Item1)
+            {
+                case ParseWikiStatus.CardCompanuSearch:
+                    wikicompanyblock = parseresult.Item2; break;
+
+                case ParseWikiStatus.MoreSearchResult:
                     lock (locker1)
                     {
                         if (SaveErrorCompanyToTxT(namecompany))
-                            return new Tuple<Result, string>(Result.Error, "Warning. Компания " + namecompany + " не найдена. ");
+                            return new Tuple<Result, string>(Result.SearthMoreCompanis, "Warning. Поиск Компании " + namecompany + " выдол несколко вариантов. Компания Сохранена в фаил.");
                         else
                             return new Tuple<Result, string>(Result.Error, "ERROR. txt фаил 'не найденных компаний' вызвал ошибку");
                     }
-                case HttpRequesStatus.ResourceFound: break;
+
+                case ParseWikiStatus.Error:
+                    return new Tuple<Result, string>(Result.Error, "ERROR. Поиск карточки компании " + namecompany + "неудачен");
             }
 
-
-
-            ParserWiki parse = new ParserWiki();
-            string wikicompanyblock = parse.ParseWikiBlockCardCompany(response.Item2);
-
-            if (String.IsNullOrEmpty(wikicompanyblock))
-                return new Tuple<Result, string>(Result.Error, "ERROR. Поиск карточки компании " + namecompany + " в HTTP ответе неудачен");
-
-
+        
 
 
             Company company = new Company();
@@ -135,17 +169,12 @@ namespace Model
                 new List<string>() { @"<td.*?class=[""]*logo[""]*.*?>+(.*?|\s)+<\/td>", @"src="".*?""", @"\""([^\""]+)\""" });
             if (!String.IsNullOrWhiteSpace(sourcefoto))
             {
-                Tuple<HttpRequesStatus, byte[]> logoresponse = http.HttpLoadImage(sourcefoto);
-                switch (logoresponse.Item1)
-                {
-                    case HttpRequesStatus.Error:
-                        return new Tuple<Result, string>(Result.Error, "ERROR. HTTP запрос вызвал ошибку");
-                    case HttpRequesStatus.ResourceNotFound:
-                        return new Tuple<Result, string>(Result.Error, "ERROR. Logotip компаний не найден");
-                    case HttpRequesStatus.ResourceFound:
-                        company.LogoCompany = logoresponse.Item2;
-                        break;
-                }
+                byte[] logoresponse = http.HttpLoadImage(sourcefoto);
+                if (logoresponse == null)
+                    return new Tuple<Result, string>(Result.Error, "ERROR. Logotip компаний не найден");
+                else
+                    company.LogoCompany = logoresponse;
+
             }
 
 
@@ -168,11 +197,12 @@ namespace Model
             company.CharterCapital.Date = parse.ParseWikiInformationCompany(wikicompanyblock,
                new List<string>() { @"Уставный капитал+(.*?|\s)+<\/p>", @"(0[1-9]|[12][0-9]|3[01])[- \/.](0[1-9]|1[012])[-\/.](19|20)\d\" });
 
+            string result;
 
             lock (locker)
             {
 
-                string result = SaveCompanyToXML(company);
+                result = SaveCompanyToXML(company);
             }
 
             if (result != null)
@@ -184,6 +214,25 @@ namespace Model
 
 
         }
+
+
+
+
+
+
+
+
+
+
+
+
+        private void Get(string namecompany)
+        {
+            Tuple<Result, string> result = GetCompany(namecompany);
+            Message(this, new EventMessage(result.Item1, result.Item2));
+        }
+
+
 
         private bool SaveErrorCompanyToTxT(string namecompany)
         {
