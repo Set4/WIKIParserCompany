@@ -28,7 +28,7 @@ namespace Model
                     string line;
                     while ((line = file.ReadLine()) != null)
                     {
-                        line = parse.ReplaceNameCompani(line);
+                        line = parse.ReplaceNameCompany(line);
                         if (!String.IsNullOrWhiteSpace(line.Trim()))
                             lines.Add(line);
                     }

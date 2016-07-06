@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -11,12 +12,25 @@ using System.Threading.Tasks;
 
 namespace Model
 {
+    /// <summary>
+    /// результат поиска и парсинга компании
+    /// </summary>
     public enum Result
     {
+        /// <summary>
+        /// компания сохранена
+        /// </summary>
         CompanySaved,
+        /// <summary>
+        /// поиск компании выдал неопределенный результат
+        /// </summary>
         SearthMoreCompanis,
+        /// <summary>
+        /// произошла ошибка
+        /// </summary>
         Error
     }
+
 
     public class EventMessage
     {
@@ -40,7 +54,7 @@ namespace Model
         event EventHandler<EventMessage> Message;
 
         ParallelLoopResult GetParallelCompanis(List<string> items, CancellationToken token, CancellationTokenSource cancelTokenSource);
-        void Pririvanie(CancellationTokenSource cancelTokenSource);
+       // void CancelParallelSaerchCompanies(CancellationTokenSource cancelTokenSource);
 
       
     }
@@ -50,6 +64,7 @@ namespace Model
 
     public class Model:IModel
     {
+
         string pathloadtxt;
         string pathsavexml;
         string pathsavetxt;
@@ -57,15 +72,21 @@ namespace Model
         const string uripath1 = @"https://ru.wikipedia.org/wiki/Special:Search?search=";
         const string uripath2 = @"&go=Go";
 
+
         public event EventHandler<EventMessage>  Message=delegate{};
 
 
 
-        static object locker = new object();
-        static object locker1 = new object();
+        static object lockerXML = new object();
+        static object lockerTXT = new object();
 
-      
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="pathloadtxt">путь к файлу .txt со списком компаний</param>
+        /// <param name="pathsavexml">путь к файлу .xml для хранения компаний</param>
+        /// <param name="pathsavetxt">путь к файлу .txt со списком не найденных компаний</param>
         public Model(string pathloadtxt, string pathsavexml, string pathsavetxt)
         {
             this.pathloadtxt = pathloadtxt;
@@ -75,7 +96,10 @@ namespace Model
             
         }
 
-
+        /// <summary>
+        /// загрузка списка названий компаний
+        /// </summary>
+        /// <returns></returns>
         public List<string> GetListCompanyToTxT()
         {
             if (String.IsNullOrWhiteSpace(pathloadtxt.Trim()) && !System.IO.File.Exists(pathloadtxt.Trim()))
@@ -87,35 +111,39 @@ namespace Model
 
 
 
-
+        /// <summary>
+        /// Parallel поиска компаний по списку
+        /// </summary>
+        /// <param name="items">список названий компаний</param>
+        /// <param name="token">токен отмены вычисления</param>
+        /// <param name="cancelTokenSource"></param>
+        /// <returns></returns>
         public ParallelLoopResult GetParallelCompanis(List<string> items, CancellationToken token, CancellationTokenSource cancelTokenSource)
         {
-            ParallelLoopResult result = new ParallelLoopResult();
-            try
-            {
+            Task.Delay(3000);
 
-                result = Parallel.ForEach<string>(items, new ParallelOptions { CancellationToken = token }, Get);
-                return result;
 
-            }
-            finally
-            {
-                cancelTokenSource.Dispose();
-            }
-
+            return Parallel.ForEach<string>(items, new ParallelOptions { CancellationToken = token }, Get);
         }
 
 
 
+        ///// <summary>
+        ///// отмена Parallel поиска компаний по списку
+        ///// </summary>
+        ///// <param name="cancelTokenSource"></param>
+        //public void CancelParallelSaerchCompanies(CancellationTokenSource cancelTokenSource)
+        //{
+        //    cancelTokenSource.Cancel();
+        //}
 
-        public void Pririvanie(CancellationTokenSource cancelTokenSource)
-        {
-            cancelTokenSource.Cancel();
-        }
 
 
-
-
+        /// <summary>
+        /// поиска и получение информации из WIKI о компаний по названию
+        /// </summary>
+        /// <param name="namecompany"></param>
+        /// <returns></returns>
         public Tuple<Result, string> GetCompany(string namecompany)
         {
             HTTPProvider http = new HTTPProvider();
@@ -123,7 +151,7 @@ namespace Model
 
             if (response == null)
             {
-                lock (locker1)
+                lock (lockerTXT)
                 {
                     if (SaveErrorCompanyToTxT(namecompany))
                         return new Tuple<Result, string>(Result.Error, "ERROR. HTTP запрос" + namecompany + " вызвал ошибку. Компания  Сохранена в фаил.");
@@ -132,6 +160,7 @@ namespace Model
                 }
             }
 
+
             Parser parse = new Parser();
             string wikicompanyblock=String.Empty;
             Tuple<ParseWikiStatus, string> parseresult = parse.CompaniIsSearth(response);
@@ -139,18 +168,14 @@ namespace Model
             {
                 case ParseWikiStatus.CardCompanuSearch:
                     wikicompanyblock = parseresult.Item2; break;
-
-                case ParseWikiStatus.MoreSearchResult:
-                    lock (locker1)
+                default:
+                    lock (lockerTXT)
                     {
-                        if (SaveErrorCompanyToTxT(namecompany))
-                            return new Tuple<Result, string>(Result.SearthMoreCompanis, "Warning. Поиск Компании " + namecompany + " выдол несколко вариантов. Компания Сохранена в фаил.");
+                        if (SaveErrorCompanyToTxT(namecompany + " (ошибка поиска)"))
+                            return new Tuple<Result, string>(Result.SearthMoreCompanis, "Warning. Поиск Компании " + namecompany + " выдaл ошибку. Компания Сохранена в фаил 'не найденных компаний'.");
                         else
                             return new Tuple<Result, string>(Result.Error, "ERROR. txt фаил 'не найденных компаний' вызвал ошибку");
                     }
-
-                case ParseWikiStatus.Error:
-                    return new Tuple<Result, string>(Result.Error, "ERROR. Поиск карточки компании " + namecompany + "неудачен");
             }
 
         
@@ -158,48 +183,43 @@ namespace Model
 
             Company company = new Company();
 
-            company.NameCompany =
-                 parse.ParseWikiInformationCompany(wikicompanyblock,
-                 new List<string>() { @"<td.*?class=[""]*fn org[""]*.*?>+(.*?|\s)+<\/td>", @">.*?<", @"[а-я А-Я 0-9]" });
-
+            company.NameCompany = parse.ParseWikiNameCompany(wikicompanyblock);
 
 
             //zagryzka foto
-            string sourcefoto = parse.ParseWikiInformationCompany(wikicompanyblock,
-                new List<string>() { @"<td.*?class=[""]*logo[""]*.*?>+(.*?|\s)+<\/td>", @"src="".*?""", @"\""([^\""]+)\""" });
+            string sourcefoto = parse.ParseWikiLogoCompany(wikicompanyblock);
             if (!String.IsNullOrWhiteSpace(sourcefoto))
             {
-                byte[] logoresponse = http.HttpLoadImage(sourcefoto);
-                if (logoresponse == null)
-                    return new Tuple<Result, string>(Result.Error, "ERROR. Logotip компаний не найден");
-                else
+                byte[] logoresponse = http.HttpLoadImage("https:"+sourcefoto);
+                if (logoresponse != null)
                     company.LogoCompany = logoresponse;
-
+                else
+                    company.LogoCompany = new byte[] { };
             }
-
+            else
+                company.LogoCompany = new byte[] { };
 
             //Год основания
-            company.YearOfFoundation = parse.ParseWikiInformationCompany(wikicompanyblock,
-                new List<string>() { @"Год основания+(.*?|\s)+<\/p>", @"[0-9]{4}" });
+            company.YearOfFoundation = parse.ParseWikiYearFoundatoinCompany(wikicompanyblock);
 
-            //Расположениe            
-            company.Location.Country = parse.ParseWikiInformationCompany(wikicompanyblock,
-               new List<string>() { @"Расположение+(.*?|\s)+<\/p>", @">.*?<", @"[a-zA-Zа-яА-ЯёЁ]+(?:[ '-][a-zA-Zа-яА-ЯёЁ]+)*" });
+            //Расположениe      
+            company.Location = new LocationCompany();                  
+            company.Location.Country = parse.ParseWikiLocationCountryCompany(wikicompanyblock);
 
-            company.Location.City = parse.ParseWikiInformationCompany(wikicompanyblock,
-               new List<string>() { @"Расположение+(.*?|\s)+<\/p>", @">.*?<", @"[a-zA-Zа-яА-ЯёЁ]+(?:[ '-][a-zA-Zа-яА-ЯёЁ]+)*" });
+            company.Location.City = parse.ParseWikiLocationCityCompany(wikicompanyblock);
 
 
             //Уставный капитал       
-            company.CharterCapital.CharterCapital = parse.ParseWikiInformationCompany(wikicompanyblock,
-               new List<string>() { @"Уставный капитал+(.*?|\s)+<\/p>", @"<p>*.*?<\/p>" });
+            company.CharterCapital = new Capital();
+            company.CharterCapital.CharterCapital = parse.ParseWikiCharterCapitalCompany(wikicompanyblock);
+            company.CharterCapital.Date = parse.ParseWikiCharterCapitalDateCompany(wikicompanyblock);
 
-            company.CharterCapital.Date = parse.ParseWikiInformationCompany(wikicompanyblock,
-               new List<string>() { @"Уставный капитал+(.*?|\s)+<\/p>", @"(0[1-9]|[12][0-9]|3[01])[- \/.](0[1-9]|1[012])[-\/.](19|20)\d\" });
+            //Ключевые фигуры
+            company.KeyPeople = parse.ParseWikiKeyPeopleNameCompany(wikicompanyblock);
 
             string result;
 
-            lock (locker)
+            lock (lockerXML)
             {
 
                 result = SaveCompanyToXML(company);
@@ -218,9 +238,7 @@ namespace Model
 
 
 
-
-
-
+     
 
 
 
@@ -233,7 +251,11 @@ namespace Model
         }
 
 
-
+        /// <summary>
+        /// запись названия не найденной компании в фаил
+        /// </summary>
+        /// <param name="namecompany"></param>
+        /// <returns></returns>
         private bool SaveErrorCompanyToTxT(string namecompany)
         {
 
@@ -246,6 +268,11 @@ namespace Model
             }
         }
 
+        /// <summary>
+        /// запись информации о компании в фаил
+        /// </summary>
+        /// <param name="company"></param>
+        /// <returns></returns>
         private string SaveCompanyToXML(Company company)
         {
 

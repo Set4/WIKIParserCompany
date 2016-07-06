@@ -28,23 +28,24 @@ namespace Model
                 if (!System.IO.File.Exists(path.Trim()))
                 {
                     doc = new XDocument(new XElement("companies"));
-                    doc.Save(path);
-
+                }
+                else
+                {
+                    doc = XDocument.Load(path);
                 }
 
-                doc = XDocument.Load(path);
                 XElement item = new XElement("company");
                 //добавляем необходимые атрибуты
                 item.Add(new XAttribute("name", company.NameCompany));
-                item.Add(new XAttribute("logo", company.YearOfFoundation));
+                item.Add(new XAttribute("year", company.YearOfFoundation));
                 //кодирование logo в base64
-                item.Add(new XAttribute("year", Convert.ToBase64String(company.LogoCompany)));
+                item.Add(new XAttribute("logo", Convert.ToBase64String(company.LogoCompany)));
 
 
                 //создаем элемент "location"
                 XElement location = new XElement("location");
-                location.Add(new XAttribute("name", company.NameCompany));
-                location.Add(new XAttribute("year", company.YearOfFoundation));
+                location.Add(new XAttribute("country", company.Location.Country));
+                location.Add(new XAttribute("city", company.Location.City));
                 item.Add(location);
 
                 //создаем элемент "capital"
@@ -54,23 +55,24 @@ namespace Model
                 item.Add(capital);
 
                 //создаем элемент "keypeoples"
-                XElement keypeoples = new XElement("keypeoples");
-                foreach (People i in company.KeyPeople)
-                {
-                    XElement people = new XElement("people");
-                    people.Add(new XAttribute("lastname", company.CharterCapital.CharterCapital));
-                    people.Add(new XAttribute("firstname", company.CharterCapital.CharterCapital));
-                    people.Add(new XAttribute("position", company.CharterCapital.CharterCapital));
-                    keypeoples.Add(people);
-                }
-                item.Add(keypeoples);
+               
+                 XElement keypeoples = new XElement("keypeoples", company.KeyPeople);
+
+                //foreach (People p in company.KeyPeople)
+                //{
+                //    XElement people = new XElement("people");
+                //    people.Add(new XAttribute("lastname", p.LastName));
+                //    people.Add(new XAttribute("firstname", p.FirstName));
+                //    people.Add(new XAttribute("position", p.Position));
+                //    keypeoples.Add(people);
+                //}
+               item.Add(keypeoples);
 
 
 
 
                 doc.Root.Add(item);
                 doc.Save(path);
-
                 return company.NameCompany;
             }
             catch (Exception ex)

@@ -1,6 +1,7 @@
 ﻿using Model;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -26,10 +27,8 @@ namespace WikiCompanyConsole
         CancellationTokenSource cancelTokenSource;
         CancellationToken token;
 
-        ParallelLoopResult result;
 
-        StatusVichislenia status;
-        
+    
 
         public Presenter(IModel model, IView view)
         {
@@ -43,16 +42,13 @@ namespace WikiCompanyConsole
             token = cancelTokenSource.Token;
 
           
-            result = new ParallelLoopResult();
-
-            status = StatusVichislenia.Stop;
-           
         }
 
 
         private void _model_Message(object sender, EventMessage e)
         {
-            _view.ViewMessage(e.Message);
+            // _view.ViewMessage(e.Message);
+            Debug.WriteLine("Message :  {0}", e.Message);
         }
 
 
@@ -86,35 +82,30 @@ namespace WikiCompanyConsole
 
         public void Start()
         {
-            if (result.IsCompleted == true || status==StatusVichislenia.Stop)
-            {
+            _view.ViewMessage("Начат поиск по списку компаний");
+           
                 if (GetListCompanies())
-                    result = _model.GetParallelCompanis(companies,
+                    _model.GetParallelCompanis(companies,
                                             token, cancelTokenSource);
-            }
-            else
-            {
-                if (companies != null && companies.Count > 0)
-                {
-                    result = _model.GetParallelCompanis(companies.GetRange((int)result.LowestBreakIteration, companies.Count - (int)result.LowestBreakIteration),
-                        token, cancelTokenSource);
-                }
-            }
 
+
+            _view.ViewMessage("Поиск завершен");
         }
 
-        public void Pause()
-        {
-            _model.Pririvanie(cancelTokenSource);
-            status = StatusVichislenia.Pause;
-        }
+        //public void Pause()
+        //{
+        //    _model.CancelParallelSaerchCompanies(cancelTokenSource);
+        //    status = StatusVichislenia.Pause;
+        //    _view.ViewMessage("Поиск приостановлен");
+        //}
 
 
-        public void Stop()
-        {
-            _model.Pririvanie(cancelTokenSource);
-            status = StatusVichislenia.Stop;
-        }
+        //public void Stop()
+        //{
+        //    _model.CancelParallelSaerchCompanies(cancelTokenSource);
+        //    status = StatusVichislenia.Stop;
+        //    _view.ViewMessage("Поиск остановлен");
+        //}
 
         public void Exit()
         {

@@ -22,7 +22,7 @@ namespace WikiCompanyConsole
         static string xmlpath = directory + @"\companies.xml";
         static string errorcompanipath = directory + @"\error.txt";
 
-        static string informationText = "bla-bla-bla";
+        static string informationText = "Список команд \r\n /start-запуск поиска по списку компаний из файла. \r\n /search-поиск компании по введенному названию \r\n /exit-выход";
 
 
         static void Main(string[] args)
@@ -31,25 +31,26 @@ namespace WikiCompanyConsole
 
             Console.WriteLine(informationText);
 
-            Task task;
-
-
          
-            Console.ReadKey();
 
-         
+
             while (true)
             {
                switch( Console.ReadLine())
                 {
-                    case "/start": Console.WriteLine("Старт:"); task= new Task(presenter.Start); task.Start();
- break;
+                    case "/start": Console.WriteLine("Старт:");
+                        Task task = Task.Factory.StartNew(() =>
+                        {
+                            presenter.Start();
+                        });
+                        
+                        break;
                     case "/search":
                         Console.Write("Введите название компании:"); 
                        presenter.SearchCompanu( Console.ReadLine());
                         break;
-                    case "/pause":presenter.Pause(); break;
-                    case "/stop": presenter.Stop(); break;
+                    //case "/pause":presenter.Pause(); break;
+                   // case "/stop": presenter.Stop(); break;
                     case "/exit": presenter.Exit(); break;
 
                     default: Console.WriteLine("Неизвестная команда."); break;

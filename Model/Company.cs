@@ -30,7 +30,8 @@ namespace Model
         /// <summary>
         /// Ключевые сотрудники
         /// </summary>
-        public List<People> KeyPeople { get; set; }
+        // public List<People> KeyPeople { get; set; }
+        public string KeyPeople { get; set; }
         /// <summary>
         /// Уставной капитал
         /// </summary>
