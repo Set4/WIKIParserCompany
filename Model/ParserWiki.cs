@@ -37,7 +37,7 @@ namespace Model
 
             
 
-                reg = new Regex(@"(ООО)|("") | (')|(ЗАО)|(ОАО)|(\\(АО\\))|(ФГУП)|(КОНЦЕРН)|(ТС)|(ФИРМА)|(КОМПАНИЯ)",
+                reg = new Regex(@"(ООО)|("")|(')|(ЗАО)|(ОАО)|(\\(АО\\))|(ФГУП)|(КОНЦЕРН)|(ТС)|(ФИРМА)|(КОМПАНИЯ)",
                RegexOptions.IgnoreCase
                | RegexOptions.Multiline
                | RegexOptions.CultureInvariant,
